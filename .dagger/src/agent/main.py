@@ -74,9 +74,9 @@ class Agent:
         )
 
         # Post summary comment using PR number from commit
-        pr_number = await dag.github_issue(
-            token, f"https://github.com/{repository}"
-        ).get_pr_for_commit(commit)
-        return await dag.github_comment(
-            token, f"https://github.com/{repository}", issue=pr_number
-        ).create(summary)
+        repository_url = f"https://github.com/{repository}"
+        github = dag.github_issue(token, repository_url)
+        pr_number = await github.get_pr_for_commit(commit)
+        return await dag.github_comment(token, repository_url, issue=pr_number).create(
+            summary
+        )

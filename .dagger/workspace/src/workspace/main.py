@@ -196,9 +196,8 @@ class Workspace:
         repository_url = f"https://github.com/{repository}"
 
         # Get PR number from commit SHA
-        pr_number = await dag.github_issue(
-            self.token, repository_url
-        ).get_pr_for_commit(commit)
+        github = dag.github_issue(self.token, repository_url)
+        pr_number = await github.get_pr_for_commit(commit)
 
         # Parse the diff into suggestions
         suggestions = self.parse_diff(diff_text)
@@ -208,9 +207,7 @@ class Workspace:
         # Post each suggestion as a PR comment
         for suggestion in suggestions:
             suggestion_text = "\n".join(suggestion.suggestion)
-            await dag.github_issue(
-                self.token, repository_url, pr_number
-            ).write_pull_request_code_comment(
+            await github.write_pull_request_code_comment(
                 commit,
                 f"```suggestion\n{suggestion_text}\n```",
                 suggestion.file,
