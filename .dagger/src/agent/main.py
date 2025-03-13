@@ -35,6 +35,7 @@ class Agent:
         self,
         source: Annotated[dagger.Directory, DefaultPath("/")],
         repository: Annotated[str, Doc("The owner and repository name")],
+        ref: Annotated[str, Doc("The ref name")],
         commit: Annotated[str, Doc("The commit SHA")],
         token: Annotated[Secret, Doc("GitHub API token")],
     ) -> str:
@@ -73,10 +74,6 @@ class Agent:
             .last_reply()
         )
 
-        # Post summary comment using PR number from commit
-        repository_url = f"https://github.com/{repository}"
-        github = dag.github_issue(token, repository_url)
-        pr_number = await github.get_pr_for_commit(commit)
-        return await dag.github_comment(token, repository_url, issue=pr_number).create(
-            summary
+        return await dag.workspace(source=source, token=token).comment(
+            repository, ref, summary
         )
