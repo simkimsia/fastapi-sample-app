@@ -14,7 +14,7 @@ from dagger import (
     function,
     object_type,
 )
-from github import Github
+from github import Commit, Github
 
 
 class GitHubClient:
@@ -47,30 +47,37 @@ class GitHubClient:
         self,
         repository: str,
         pull_number: int,
-        commit_id: str,
-        body: str,
-        event: str,
-        comments: List[Dict[str, any]],
+        commit: Commit = None,
+        body: str = None,
+        event: str = "COMMENT",
+        comments: List[Dict[str, any]] = None,
     ) -> None:
         """Create a review with inline comments on a pull request
 
         Args:
             repository: Full repository name (e.g., "owner/repo")
             pull_number: Pull request number
-            commit_id: SHA of the commit to review
-            body: The review body text
-            event: The review event (e.g., "COMMENT", "APPROVE", "REQUEST_CHANGES")
-            comments: List of review comments with their positions
+            commit: The commit object to review (optional)
+            body: The review body text (optional)
+            event: The review event (e.g., "COMMENT", "APPROVE", "REQUEST_CHANGES"), defaults to "COMMENT"
+            comments: List of review comments with their positions (optional)
         """
         if not self.github:
             await self.init()
         repo = self.github.get_repo(repository)
         pr = repo.get_pull(pull_number)
 
+        # Prepare post parameters
+        post_parameters = {}
+        if body is not None:
+            post_parameters["body"] = body
+        post_parameters["event"] = event
+        if commit is not None:
+            post_parameters["commit"] = commit
+        post_parameters["comments"] = comments if comments is not None else []
+
         # Create the review with all comments
-        pr.create_review(
-            body=body, event=event, commit_sha=commit_id, comments=comments
-        )
+        pr.create_review(**post_parameters)
 
 
 @dataclass
@@ -256,6 +263,10 @@ class Workspace:
         # Get PR number from commit SHA
         pr_number = await github.get_pr_for_commit(repository, commit)
 
+        # Get the repository and commit objects
+        repo = github.github.get_repo(repository)
+        commit_obj = repo.get_commit(commit)
+
         # Parse the diff into suggestions
         suggestions = self.parse_diff(diff_text)
         if not suggestions:
@@ -279,7 +290,7 @@ class Workspace:
         await github.create_review(
             repository=repository,
             pull_number=pr_number,
-            commit_id=commit,
+            commit=commit_obj,
             body="Code suggestions from automated review",
             event="COMMENT",
             comments=review_comments,
