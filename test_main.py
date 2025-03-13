@@ -34,7 +34,7 @@ class TestBookRepository:
         book2 = create_book(test_db, BookIn(**TEST_BOOKS[1]))
 
         books = get_books(test_db)
-        #assert len(books) >= 2
+        assert len(books) >= 4
         assert any(b.id == book1.id for b in books)
         assert any(b.id == book2.id for b in books)
 
