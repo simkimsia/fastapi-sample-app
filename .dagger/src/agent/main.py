@@ -60,13 +60,16 @@ class Agent:
         # Get the diff from workspace changes
         diff_text = await work.workspace().diff()
 
+        # Store the workspace state
+        workspace_state = work.workspace()
+
         # Post suggestions as review comments
-        # await work.workspace().suggest(repository, commit, diff_text)
+        await workspace_state.suggest(repository, commit, diff_text)
 
         # Generate summary for the main PR comment
         summary = await (
             dag.llm()
-            .with_workspace(before)
+            .with_workspace(workspace_state)  # Use the same workspace state
             .with_prompt_var("diff", diff_text)
             .with_prompt(
                 "Read the code in the workspace. Read the code diff below. Treat the changes made to the workspace as a proposal and summarize them. Include your proposal plus the code diff in your final response. <diff>$diff</diff>"
