@@ -279,9 +279,8 @@ class Workspace:
             review_comments.append(
                 {
                     "path": suggestion.file,
-                    "position": suggestion.line,
-                    "body": f"```suggestion\n{suggestion_text}\n```",
                     "line": suggestion.line,
+                    "body": f"```suggestion\n{suggestion_text}\n```",
                     "side": "RIGHT",
                 }
             )
