@@ -193,11 +193,11 @@ class Workspace:
         if not self.token:
             raise ValueError("GitHub token is required for suggesting changes")
 
-        repository_url = f"https://github.com/{repository}"
+        # Create GitHub issue client with just the token
+        github = dag.github_issue(self.token)
 
-        # Get PR number from commit SHA
-        github = dag.github_issue(self.token, repository_url)
-        pr_number = await github.get_pr_for_commit(commit)
+        # Get PR number from commit SHA - pass repository separately
+        pr_number = await github.get_pr_for_commit(repository, commit)
 
         # Parse the diff into suggestions
         suggestions = self.parse_diff(diff_text)
@@ -208,11 +208,13 @@ class Workspace:
         for suggestion in suggestions:
             suggestion_text = "\n".join(suggestion.suggestion)
             await github.write_pull_request_code_comment(
-                commit,
-                f"```suggestion\n{suggestion_text}\n```",
-                suggestion.file,
-                "RIGHT",
-                suggestion.line,
+                repository,  # repo
+                pr_number,  # issueID
+                commit,  # commit
+                f"```suggestion\n{suggestion_text}\n```",  # body
+                suggestion.file,  # path
+                "RIGHT",  # side
+                suggestion.line,  # line
             )
 
         return f"Posted {len(suggestions)} suggestions"
