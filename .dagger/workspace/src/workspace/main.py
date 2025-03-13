@@ -23,10 +23,18 @@ class GitHubClient:
     def __init__(self, token):
         """Initialize the GitHub client with an access token"""
         self.token = token
-        self.github = Github(token.plaintext())
+        self.github = None  # Will be initialized in async init
+
+    async def init(self):
+        """Initialize the GitHub client with the token"""
+        token_text = await self.token.plaintext()
+        self.github = Github(token_text)
+        return self
 
     async def get_pr_for_commit(self, repo: str, commit: str) -> int:
         """Get the pull request number associated with a commit"""
+        if not self.github:
+            await self.init()
         repository = self.github.get_repo(repo)
         # Get all PRs that contain this commit
         pulls = repository.get_pulls(state="open")
@@ -54,6 +62,8 @@ class GitHubClient:
             event: The review event (e.g., "COMMENT", "APPROVE", "REQUEST_CHANGES")
             comments: List of review comments with their positions
         """
+        if not self.github:
+            await self.init()
         repo = self.github.get_repo(repository)
         pr = repo.get_pull(pull_number)
 
@@ -238,8 +248,8 @@ class Workspace:
         if not self.token:
             raise ValueError("GitHub token is required for suggesting changes")
 
-        # Create GitHub client
-        github = GitHubClient(self.token)
+        # Create and initialize GitHub client
+        github = await GitHubClient(self.token).init()
 
         # Get PR number from commit SHA
         pr_number = await github.get_pr_for_commit(repository, commit)
@@ -286,8 +296,8 @@ class Workspace:
         if not self.token:
             raise ValueError("GitHub token is required for commenting")
 
-        # Create GitHub client
-        github = GitHubClient(self.token)
+        # Create and initialize GitHub client
+        github = await GitHubClient(self.token).init()
 
         # Extract PR number from ref
         pr_number = int(re.search(r"(\d+)", ref).group(1))
