@@ -14,6 +14,7 @@ from dagger import (
     function,
     object_type,
 )
+from github_client import GitHubClient
 
 
 @dataclass
@@ -193,10 +194,10 @@ class Workspace:
         if not self.token:
             raise ValueError("GitHub token is required for suggesting changes")
 
-        # Create GitHub issue client with just the token
-        github = dag.github_issue(self.token)
+        # Create GitHub client
+        github = GitHubClient(self.token)
 
-        # Get PR number from commit SHA - pass repository separately
+        # Get PR number from commit SHA
         pr_number = await github.get_pr_for_commit(repository, commit)
 
         # Parse the diff into suggestions
@@ -204,18 +205,29 @@ class Workspace:
         if not suggestions:
             return "No suggestions to make"
 
-        # Post each suggestion as a PR comment
+        # Format all suggestions as review comments
+        review_comments = []
         for suggestion in suggestions:
             suggestion_text = "\n".join(suggestion.suggestion)
-            await github.write_pull_request_code_comment(
-                repository,  # repo
-                pr_number,  # issueID
-                commit,  # commit
-                f"```suggestion\n{suggestion_text}\n```",  # body
-                suggestion.file,  # path
-                "RIGHT",  # side
-                suggestion.line,  # line
+            review_comments.append(
+                {
+                    "path": suggestion.file,
+                    "position": suggestion.line,
+                    "body": f"```suggestion\n{suggestion_text}\n```",
+                    "line": suggestion.line,
+                    "side": "RIGHT",
+                }
             )
+
+        # Create the review with all comments
+        await github.create_review(
+            repository=repository,
+            pull_number=pr_number,
+            commit_id=commit,
+            body="Code suggestions from automated review",
+            event="COMMENT",
+            comments=review_comments,
+        )
 
         return f"Posted {len(suggestions)} suggestions"
 
@@ -227,11 +239,26 @@ class Workspace:
         body: Annotated[str, Doc("The comment body")],
     ) -> str:
         """Adds a comment to the PR"""
-        repository_url = f"https://github.com/{repository}"
+        if not self.token:
+            raise ValueError("GitHub token is required for commenting")
+
+        # Create GitHub client
+        github = GitHubClient(self.token)
+
+        # Extract PR number from ref
         pr_number = int(re.search(r"(\d+)", ref).group(1))
-        return await dag.github_comment(
-            self.token, repository_url, issue=pr_number
-        ).create(body)
+
+        # Create the review with just a comment
+        await github.create_review(
+            repository=repository,
+            pull_number=pr_number,
+            commit_id=ref,  # Use ref as commit_id for comments
+            body=body,
+            event="COMMENT",
+            comments=[],
+        )
+
+        return "Posted comment"
 
     @function
     def container(self) -> Container:
