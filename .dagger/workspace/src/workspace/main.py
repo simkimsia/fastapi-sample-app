@@ -13,8 +13,7 @@ from dagger import (
     function,
     object_type,
 )
-
-from ....suggestions import parse_diff
+from suggestions import parse_diff
 
 
 @object_type
