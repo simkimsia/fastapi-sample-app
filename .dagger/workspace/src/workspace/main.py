@@ -68,7 +68,9 @@ class GitHubClient:
         pr = repo.get_pull(pull_number)
 
         # Create the review with all comments
-        pr.create_review(body=body, event=event, commit_id=commit_id, comments=comments)
+        pr.create_review(
+            body=body, event=event, commit_sha=commit_id, comments=comments
+        )
 
 
 @dataclass
@@ -293,26 +295,11 @@ class Workspace:
         body: Annotated[str, Doc("The comment body")],
     ) -> str:
         """Adds a comment to the PR"""
-        if not self.token:
-            raise ValueError("GitHub token is required for commenting")
-
-        # Create and initialize GitHub client
-        github = await GitHubClient(self.token).init()
-
-        # Extract PR number from ref
+        repository_url = f"https://github.com/{repository}"
         pr_number = int(re.search(r"(\d+)", ref).group(1))
-
-        # Create the review with just a comment
-        await github.create_review(
-            repository=repository,
-            pull_number=pr_number,
-            commit_id=ref,  # Use ref as commit_id for comments
-            body=body,
-            event="COMMENT",
-            comments=[],
-        )
-
-        return "Posted comment"
+        return await dag.github_comment(
+            self.token, repository_url, issue=pr_number
+        ).create(body)
 
     @function
     def container(self) -> Container:
