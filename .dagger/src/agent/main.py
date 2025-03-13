@@ -35,7 +35,7 @@ class Agent:
         self,
         source: Annotated[dagger.Directory, DefaultPath("/")],
         repository: Annotated[str, Doc("The owner and repository name")],
-        ref: Annotated[str, Doc("The ref name")],
+        commit: Annotated[str, Doc("The commit SHA")],
         token: Annotated[Secret, Doc("GitHub API token")],
     ) -> str:
         before = dag.workspace(source=source, token=token)
@@ -60,7 +60,7 @@ class Agent:
         diff_text = await work.workspace().diff()
 
         # Post suggestions as review comments
-        await work.workspace().suggest(repository, ref, diff_text)
+        await work.workspace().suggest(repository, commit, diff_text)
 
         # Generate summary for the main PR comment
         summary = await (
@@ -73,4 +73,10 @@ class Agent:
             .last_reply()
         )
 
-        return await work.workspace().comment(repository, ref, summary)
+        # Post summary comment using PR number from commit
+        pr_number = await dag.github_issue(
+            token, f"https://github.com/{repository}"
+        ).get_pr_for_commit(commit)
+        return await dag.github_comment(
+            token, f"https://github.com/{repository}", issue=pr_number
+        ).create(summary)

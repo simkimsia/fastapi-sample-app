@@ -180,42 +180,45 @@ class Workspace:
     async def suggest(
         self,
         repository: Annotated[str, Doc("The owner and repository name")],
-        ref: Annotated[str, Doc("The ref name")],
+        commit: Annotated[str, Doc("The commit SHA")],
         diff_text: Annotated[str, Doc("The diff text to parse for suggestions")],
     ) -> str:
         """Posts code suggestions as inline comments on a PR
 
         Args:
             repository: Full repository name (e.g., "owner/repo")
-            ref: The PR reference (e.g., "refs/pull/123/merge")
+            commit: The commit SHA to attach comments to
             diff_text: The diff text to parse for suggestions
         """
         if not self.token:
             raise ValueError("GitHub token is required for suggesting changes")
 
         repository_url = f"https://github.com/{repository}"
-        pr_number = int(re.search(r"(\d+)", ref).group(1))
+
+        # Get PR number from commit SHA
+        pr_number = await dag.github_issue(
+            self.token, repository_url
+        ).get_pr_for_commit(commit)
 
         # Parse the diff into suggestions
         suggestions = self.parse_diff(diff_text)
+        if not suggestions:
+            return "No suggestions to make"
 
         # Post each suggestion as a PR comment
-        results = []
         for suggestion in suggestions:
             suggestion_text = "\n".join(suggestion.suggestion)
-            comment_body = f"```suggestion\n{suggestion_text}\n```"
-
-            # Post comment directly on the PR at the specific line
-            result = await dag.github_issue(
+            await dag.github_issue(
                 self.token, repository_url, pr_number
-            ).write_code_comment(
-                comment_body, suggestion.file, "RIGHT", suggestion.line
+            ).write_pull_request_code_comment(
+                commit,
+                f"```suggestion\n{suggestion_text}\n```",
+                suggestion.file,
+                "RIGHT",
+                suggestion.line,
             )
-            results.append(result)
 
-        if results:
-            return f"Posted {len(results)} suggestions"
-        return "No suggestions to make"
+        return f"Posted {len(suggestions)} suggestions"
 
     @function
     async def comment(
