@@ -61,7 +61,7 @@ class Agent:
         diff_text = await work.workspace().diff()
 
         # Post suggestions as review comments
-        # await work.workspace().suggest(repository, commit, diff_text)
+        await work.workspace().suggest(repository, commit, diff_text)
 
         # Generate summary for the main PR comment
         summary = await (
