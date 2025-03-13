@@ -8,8 +8,7 @@ except ImportError:
     GIT_SUPPORT = False
 
 from github import Github, PullRequest
-
-from .suggestions import parse_diff
+from workspace.src.workspace.suggestions import parse_diff
 
 
 class GithubClient:
