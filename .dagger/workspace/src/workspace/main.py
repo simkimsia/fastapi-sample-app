@@ -20,7 +20,7 @@ from github import Github
 class GitHubClient:
     """Client for interacting with GitHub API for PR reviews and suggestions"""
 
-    def __init__(self, token: Secret):
+    def __init__(self, token):
         """Initialize the GitHub client with an access token"""
         self.token = token
         self.github = Github(token.plaintext())
